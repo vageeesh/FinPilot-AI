@@ -1,0 +1,60 @@
+name: mcp_agentic
+
+services:
+  api:
+    build: .
+    container_name: app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MCP_SERVER_URL=http://mcp-server:8001
+    volumes:
+      - .:/app
+
+  mcp-server:
+    build: .
+    command: python mcp_server/server.py
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    # Health check to ensure the MCP server is running before the API tries to connect
+    # This will help prevent connection errors if the API starts before the MCP server is ready
+    # Checks on every 10 seconds, with a timeout of 5 seconds, and retries up to 3 times before marking the container as unhealthy
+
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8001/mcp"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 3
+
+  db:
+    image: postgres:15
+    container_name: app_db
+    restart: always
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
