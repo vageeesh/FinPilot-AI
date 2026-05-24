@@ -5,11 +5,14 @@ from app.core.config import settings
 
 class RedisClient:
     def __init__(self):
-        self.client = aioredis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            decode_responses=True
-        )
+        if settings.REDIS_URL:
+            self.client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        else:
+            self.client = aioredis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                decode_responses=True,
+            )
 
     async def save_turn(self, key, user_msg, assistant_msg):
         """Save a conversation turn as a JSON string in Redis list."""

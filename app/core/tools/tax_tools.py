@@ -1,5 +1,5 @@
 # Tax calculation tool for Indian income tax based on the latest tax slabs and regimes.
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 
 class IncomeBreakdown(TypedDict, total=False):

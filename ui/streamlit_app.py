@@ -4,8 +4,8 @@ import pandas as pd
 import json
 import re
 
-API_URL = "http://0.0.0.0:8000"
-# If i Dockerise this, then update URL to 'API_URL = "http://api:8000"' because docker to docker communication via service name
+import os
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 
 def extract_visualization(response_text):
@@ -91,42 +91,56 @@ if prompt:
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        status_placeholder = st.empty()
-        message_placeholder = st.empty()
-        full_response = ""
         viz_data = None
+        progress_placeholder = st.empty()
+        progress_lines = []
 
         with requests.post(
             f"{API_URL}/agent/query",
             json={"query": prompt, "session_id": "default"},
             stream=True
         ) as response:
-            for line in response.iter_lines():
-                if line:
+
+            def token_stream():
+                for line in response.iter_lines(chunk_size=1):
+                    if not line:
+                        continue
                     chunk = line.decode("utf-8")
+                    if chunk.startswith("data: "):
+                        chunk = chunk[6:]
                     try:
                         event = json.loads(chunk)
                     except json.JSONDecodeError:
                         continue
 
-                    if event.get("type") == "step":
-                        agent = event.get("agent", "")
-                        reasoning = event.get("reasoning", "")
-                        status_placeholder.info(f"🔄 Routing to **{agent}** — {reasoning}")
+                    etype = event.get("type")
 
-                    elif event.get("type") == "result":
-                        agent = event.get("agent", "")
-                        status_placeholder.info(f"✅ **{agent}** completed")
+                    if etype == "status":
+                        progress_lines.append(f"🔄 {event.get('message', '')}")
+                        progress_placeholder.info("\n\n".join(progress_lines))
+                    elif etype == "plan":
+                        for i, phase in enumerate(event.get("phases", [])):
+                            progress_lines.append(f"📋 Phase {i + 1}: **{', '.join(phase)}**")
+                        progress_placeholder.info("\n\n".join(progress_lines))
+                    elif etype == "result":
+                        progress_lines.append(f"✅ **{event.get('agent', '')}** completed")
+                        progress_placeholder.info("\n\n".join(progress_lines))
+                    elif etype == "agent_start":
+                        progress_placeholder.empty()
+                    elif etype == "token":
+                        yield event.get("content", "")
+                    elif etype == "final":
+                        progress_placeholder.empty()
+                        if event.get("answer"):
+                            yield event.get("answer", "")
+                    elif etype == "error":
+                        progress_placeholder.error(event.get("message", "Unknown error"))
 
-                    elif event.get("type") == "final":
-                        full_response = event.get("answer", "")
-                        status_placeholder.empty()
+            full_response = st.write_stream(token_stream())
 
-            clean_text, viz_data = extract_visualization(full_response)
-            message_placeholder.markdown(clean_text)
-
-            if viz_data:
-                render_visualization(viz_data)
+        clean_text, viz_data = extract_visualization(full_response)
+        if viz_data:
+            render_visualization(viz_data)
 
     st.session_state.messages.append(
         {"role": "assistant", "content": clean_text, "viz_data": viz_data}

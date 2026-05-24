@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -22,7 +23,18 @@ api_router.include_router(
 async def agent_query(request: AgentQueryRequest):
     """Multi-agent workflow — streams intermediate steps + final answer."""
     async def event_generator():
-        async for chunk in stream_graph_workflow(request.query, request.session_id):
-            yield chunk
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Analyzing your query...'})}\n\n"
+            async for chunk in stream_graph_workflow(request.query, request.session_id):
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disables Nginx buffering if behind a proxy
+        },
+    )

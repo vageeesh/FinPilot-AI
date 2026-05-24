@@ -74,7 +74,6 @@ def _route_after_execute(state: AgentState) -> str:
     if current_phase < len(plan):
         return "execute_phase"
 
-    # Single-agent total — skip supervisor re-call, use agent output directly
     if state.get("done"):
         return END
 

@@ -84,5 +84,4 @@ AGENT_REGISTRY: dict[str, AgentMeta] = {}
 
 
 def load_registry():
-    global AGENT_REGISTRY
-    AGENT_REGISTRY = _get_registry()
+    AGENT_REGISTRY.update(_get_registry())

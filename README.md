@@ -348,16 +348,36 @@ FinPilot:
 
 ## Quick Start
 
-```bash
-# Clone and setup
-cd "FinPilot AI"
-pip install -r requirements.txt
+### Docker (Recommended)
 
-# Run the MCP server
-python mcp_server/server.py
+```bash
+# Clone the repo
+git clone https://github.com/<your-username>/FinPilot-AI.git
+cd FinPilot-AI
+
+# Set up environment variables
+cp env.example .env
+# Edit .env and add your OPENAI_API_KEY
+
+# Start all services (API, MCP server, PostgreSQL, Redis)
+docker compose up --build
 ```
 
-The server exposes all tools via FastMCP at the `/finance` endpoint.
+Services will be available at:
+- **API**: http://localhost:8000
+- **MCP Server**: http://localhost:8001
+- **UI (Streamlit)**: http://localhost:8501
+
+### Local (without Docker)
+
+```bash
+pip install -r requirements.txt
+
+# Start PostgreSQL and Redis separately, then:
+python mcp_server/server.py   # Terminal 1 — MCP tool server
+python -m uvicorn app.main:app --reload  # Terminal 2 — API
+streamlit run ui/streamlit_app.py  # Terminal 3 — UI
+```
 
 ---
 
@@ -408,12 +428,6 @@ ui/
 - [ ] AIS data parser (upload your AIS PDF, auto-fill tax tool)
 - [ ] Multi-year tax planning (project deductions to optimize regime choice)
 - [ ] NPS tier-1 vs PPF comparison tool
-
----
-
-## License
-
-MIT
 
 ---
 
